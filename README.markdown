@@ -1,29 +1,33 @@
 # Basin
 
--   states:
+Yet another task manager.
 
-    -   ACTIVE: currently needs attention
+Tasks can live in states:
 
-    -   SLEEPING: deferred until later (can be indefinite)
+-   **`active`**: incomplete tasks
 
-    -   WAITING: delegated to someone else
+-   **`completed`**: done tasks
 
-    -   BLOCKED: requires completion of another task
+-   **`sleeping`**: deferred until later (can be indefinite)
 
--   task properties:
+-   **`delegated`**: delegated to someone else
 
-    -   TID: task id number
+-   **`blocked`**: requires completion of another task
 
-    -   TITLE: one-line description
+-   **`trashed`**: deleted tasks
 
-    -   DONE: true/false, starts as false
+Tasks have the following properties:
 
-    -   PROJECT: true/false, is a high-level project, default false
+-   **`tid`**: task id number
 
-    -   OWNER: other person assigned to task (optional)
+-   **`title`**: one-line description
 
-    -   DUE: due date (optional)
+-   **`completed`**: true/false, starts as false
 
-    -   LABELS: descriptive tags (optional)
+-   **`project`**: true/false, is a high-level project, default false
 
-    -   BODY: further description (optional)
+-   **`due`**: due date (optional)
+
+-   **`labels`**: descriptive tags (optional)
+
+-   **`body`**: further description (optional)
