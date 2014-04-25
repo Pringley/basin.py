@@ -9,7 +9,7 @@ class TaskTestCase(unittest.TestCase):
         tasks = Tasks()
         title = "My first task"
         tid = tasks.create(title=title)
-        task = tasks.get_task(tid)
+        task = tasks.get(tid)
         self.assertEqual(task.title, title)
 
     def test_update_task(self):
@@ -17,8 +17,8 @@ class TaskTestCase(unittest.TestCase):
         misspelled_title = "My frist task"
         correct_title = "My first task"
         tid = tasks.create(title=misspelled_title)
-        tasks.update(tid=tid, title=correct_title)
-        task = tasks.get_task(tid)
+        tasks.update(tid, title=correct_title)
+        task = tasks.get(tid)
         self.assertEqual(task.title, correct_title)
 
     def test_active(self):
@@ -124,6 +124,23 @@ class TaskTestCase(unittest.TestCase):
         self.assertTrue(tid not in tasks.infocus_tids())
         tasks.untrash(tid)
         self.assertTrue(tid in tasks.infocus_tids())
+
+    def test_history(self):
+        tasks = Tasks()
+        tid = tasks.create()
+        title = "My first task"
+        tasks.update(tid, title=title)
+        tasks.sleep(tid)
+        tasks.unsleep(tid)
+        tasks.complete(tid)
+        title2 = "My second task"
+        tid2 = tasks.create(title=title2)
+        history = tasks.dumps()
+        tasks2 = Tasks.loads(history)
+        self.assertTrue(tid in tasks2.completed_tids())
+        self.assertTrue(tid2 in tasks2.active_tids())
+        self.assertEqual(title, tasks2.get(tid).title)
+        self.assertEqual(title2, tasks2.get(tid2).title)
 
 if __name__ == '__main__':
     unittest.main()

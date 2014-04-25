@@ -1,4 +1,5 @@
 import time
+import json
 import collections
 
 Task = collections.namedtuple('Task', [
@@ -24,8 +25,37 @@ def set_defaults(params, defaults):
 
 class Tasks(object):
 
-    def __init__(self):
+    def __init__(self, _from_history=None):
         self.tasks = {}
+        self.history = []
+
+        if _from_history:
+            for update_params in _from_history:
+                self._update(**update_params)
+
+    def _archive(self):
+        """Create an archive (for dump to file)."""
+        return {'history': self.history, 'timestamp': time.time()}
+
+    def dumps(self):
+        """Return a string representation of full current state."""
+        return json.dumps(self._archive())
+
+    def dump(self, tofile):
+        """Write representation of full current state to file."""
+        return json.dump(self._archive(), tofile)
+
+    @classmethod
+    def loads(cls, fromstr):
+        """Read dump'd state from string."""
+        archive = json.loads(fromstr)
+        return cls(_from_history=archive['history'])
+
+    @classmethod
+    def load(cls, fromfile):
+        """Read dump'd state from file."""
+        archive = json.load(fromfile)
+        return cls(_from_history=archive['history'])
 
     def all_tids(self):
         """Return a set of all task ids."""
@@ -70,40 +100,40 @@ class Tasks(object):
 
     def is_sleeping(self, tid):
         """Return True if given task id is sleeping."""
-        task = self.get_task(tid)
+        task = self.get(tid)
         return task.sleepuntil is not None and (task.sleepuntil == -1
                 or time.time() < task.sleepuntil)
 
     def is_blocked(self, tid):
         """Return True if given task id is blocked."""
-        task = self.get_task(tid)
+        task = self.get(tid)
         for blocking_tid in task.blockers:
-            blocker = self.get_task(blocking_tid)
+            blocker = self.get(blocking_tid)
             if not blocker.completed:
                 return True
         return False
 
     def is_delegated(self, tid):
         """Return True if given task id is delegated."""
-        task = self.get_task(tid)
+        task = self.get(tid)
         return task.owner is not None
 
     def is_completed(self, tid):
         """Return True if given task id is completed."""
-        task = self.get_task(tid)
+        task = self.get(tid)
         return task.completed
 
     def is_trashed(self, tid):
         """Return True if given task id is trashed."""
-        task = self.get_task(tid)
+        task = self.get(tid)
         return task.trashed
 
     def is_project(self, tid):
         """Return True if given task id is a project."""
-        task = self.get_task(tid)
+        task = self.get(tid)
         return task.project
 
-    def get_task(self, tid):
+    def get(self, tid):
         """Return the task corresponding to the given id."""
         return self.tasks[tid]
 
@@ -117,9 +147,9 @@ class Tasks(object):
             'project': False,
             'owner': None,
             'sleepuntil': None,
-            'blockers': set(),
+            'blockers': [],
             'due': None,
-            'labels': set(),
+            'labels': [],
             'body': '',
             'created': now,
             'updated': now,
@@ -128,70 +158,75 @@ class Tasks(object):
         tid = params["tid"]
         if tid in self.tasks:
             raise BasinError("cannot recreate existing task %d" % tid)
-        self.update(_create=True, **params)
+        self._update(**params)
         return tid
 
     def trash(self, tid):
         """Send a task to the trash."""
-        self.update(tid=tid, trashed=True)
+        self._update(tid=tid, trashed=True)
 
     def untrash(self, tid):
         """Remove a task from the trash."""
-        self.update(tid=tid, trashed=False)
+        self._update(tid=tid, trashed=False)
 
     def complete(self, tid):
         """Complete a task."""
-        self.update(tid=tid, completed=True)
+        self._update(tid=tid, completed=True)
 
     def uncomplete(self, tid):
         """Mark a task as not complete."""
-        self.update(tid=tid, completed=False)
+        self._update(tid=tid, completed=False)
 
     def sleep(self, tid, wakeup_time=-1):
         """Sleep a task until wakeup_time, or indefinitely if time not provided."""
-        self.update(tid=tid, sleepuntil=wakeup_time)
+        self._update(tid=tid, sleepuntil=wakeup_time)
 
     def unsleep(self, tid):
         """Remove sleep from a task."""
-        self.update(tid=tid, sleepuntil=None)
+        self._update(tid=tid, sleepuntil=None)
 
     def delegate(self, tid, owner):
         """Delegate a task to a new owner."""
-        self.update(tid=tid, owner=owner)
+        self._update(tid=tid, owner=owner)
 
     def undelegate(self, tid):
         """Un-delegate a task."""
-        self.update(tid=tid, owner=None)
+        self._update(tid=tid, owner=None)
 
     def block(self, blocked_tid, blocking_tid):
         """Mark a task as blocking another."""
-        task = self.get_task(blocked_tid)
-        self.update(tid=blocked_tid, blockers=(task.blockers |
-            set([blocking_tid])))
+        task = self.get(blocked_tid)
+        self._update(tid=blocked_tid, blockers=list((set(task.blockers) |
+            set([blocking_tid]))))
 
     def unblock(self, blocked_tid, blocking_tid=None):
         """Mark a task as unblocked. Optionally only remove one blocker."""
         if blocking_tid is None:
-            self.update(tid=blocked_tid, blockers=set())
+            self._update(tid=blocked_tid, blockers=[])
             return
-        task = self.get_task(blocked_tid)
-        self.update(tid=blocked_tid, blockers=(task.blockers -
-            set([blocking_tid])))
+        task = self.get(blocked_tid)
+        self._update(tid=blocked_tid, blockers=list((set(task.blockers) -
+            set([blocking_tid]))))
 
-    def update(self, _create=False, **params):
+    def update(self, tid, **params):
         """Update a task."""
+        if tid not in self.tasks:
+            raise BasinError("cannot update non-existing tid %d" % tid)
+        self._update(tid=tid, **params)
+
+    def _update(self, **params):
+        """(Internal) update a task."""
         if 'tid' not in params:
             raise TypeError("update() missing required argument: 'tid'")
         tid = params['tid']
-        if _create:
-            self.tasks[tid] = Task(**params)
-            return
         if tid not in self.tasks:
-            raise BasinError("tried to update non-existant task %d" % tid)
-        set_defaults(params, {
-            'updated': time.time(),
-        })
-        self.tasks[tid] = self.tasks[tid]._replace(**params)
+            self.tasks[tid] = Task(**params)
+        else:
+            set_defaults(params, {
+                'updated': time.time(),
+            })
+            self.tasks[tid] = self.tasks[tid]._replace(**params)
+        self.history.append(params)
 
     def lowest_available_tid(self):
         """Return the lowest task id that has not yet been used."""
