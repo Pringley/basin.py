@@ -138,8 +138,9 @@ class Tasks(object):
         """Return the task corresponding to the given id."""
         return self.tasks[tid]
 
-    def create(self, **params):
+    def create(self, title=None, **params):
         """Create a new task."""
+        params['title'] = title
         now = time.time()
         set_defaults(params, {
             'tid': self.lowest_available_tid(),

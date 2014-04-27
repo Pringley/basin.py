@@ -8,7 +8,7 @@ class TaskTestCase(unittest.TestCase):
     def test_create_task(self):
         tasks = Tasks()
         title = "My first task"
-        tid = tasks.create(title=title)
+        tid = tasks.create(title)
         task = tasks.get(tid)
         self.assertEqual(task.title, title)
 
