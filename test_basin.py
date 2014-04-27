@@ -1,5 +1,5 @@
 import unittest
-import time
+import datetime
 
 from basin import Tasks
 
@@ -49,9 +49,9 @@ class TaskTestCase(unittest.TestCase):
         self.assertTrue(tid not in tasks.filter(completed=True))
 
     def test_sleep(self):
-        now = time.time()
-        future = now + 1000000
-        past = now - 1000000
+        now = datetime.datetime.now()
+        future = now + datetime.timedelta(days=1)
+        past = now - datetime.timedelta(days=1)
         tasks = Tasks()
         tid = tasks.create()
         self.assertTrue(not tasks.is_sleeping(tid))
@@ -113,23 +113,6 @@ class TaskTestCase(unittest.TestCase):
         self.assertTrue(not tasks.is_active(tid))
         tasks.untrash(tid)
         self.assertTrue(tasks.is_active(tid))
-
-    def test_history(self):
-        tasks = Tasks()
-        tid = tasks.create()
-        title = "My first task"
-        tasks.update(tid, title=title)
-        tasks.sleep(tid)
-        tasks.unsleep(tid)
-        tasks.complete(tid)
-        title2 = "My second task"
-        tid2 = tasks.create(title=title2)
-        history = tasks.dumps()
-        tasks2 = Tasks.loads(history)
-        self.assertTrue(tasks2.is_completed(tid))
-        self.assertTrue(tasks2.is_active(tid2))
-        self.assertEqual(title, tasks2.get(tid).title)
-        self.assertEqual(title2, tasks2.get(tid2).title)
 
 if __name__ == '__main__':
     unittest.main()
