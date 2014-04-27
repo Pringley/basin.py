@@ -13,7 +13,7 @@ class Model(pw.Model):
 
 class Task(Model):
     """Represent a todo item."""
-    title = pw.CharField(null=True, help_text='short description')
+    summary = pw.CharField(null=True, help_text='short description')
     body = pw.CharField(null=True, help_text='longer description')
     due = pw.DateTimeField(null=True, help_text='due date/time')
     project = pw.BooleanField(default=False, help_text='multi-step project?')
@@ -29,10 +29,11 @@ class Task(Model):
     sleepuntil = pw.DateTimeField(null=True)
 
     @classmethod
-    def create(cls, **kwargs):
+    def create(cls, summary=None, **kwargs):
         now = datetime.datetime.now()
         kwargs.setdefault('created', now)
         kwargs.setdefault('updated', now)
+        kwargs['summary'] = summary
         return super(Task, cls).create(**kwargs)
 
     def save(self, **kwargs):

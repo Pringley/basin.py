@@ -10,17 +10,17 @@ class TaskTestCase(unittest.TestCase):
         global_db_init(':memory:')
 
     def test_create_task(self):
-        title = "My first task"
-        task = Task.create(title=title)
-        self.assertEqual(task.title, title)
+        summary = "My first task"
+        task = Task.create(summary=summary)
+        self.assertEqual(task.summary, summary)
 
     def test_update_task(self):
-        misspelled_title = "My frist task"
-        correct_title = "My first task"
-        task = Task.create(title=misspelled_title)
-        task.title = correct_title
+        misspelled_summary = "My frist task"
+        correct_summary = "My first task"
+        task = Task.create(summary=misspelled_summary)
+        task.summary = correct_summary
         task.save()
-        self.assertEqual(task.title, correct_title)
+        self.assertEqual(task.summary, correct_summary)
 
     def test_complete(self):
         task = Task.create()
