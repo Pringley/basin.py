@@ -33,9 +33,16 @@ class Tasks(object):
             for update_params in _from_history:
                 self._update(**update_params)
 
-    def _archive(self):
+    def _archive(self, include_history=True):
         """Create an archive (for dump to file)."""
-        return {'history': self.history, 'timestamp': time.time()}
+        archive = {
+            'timestamp': time.time(),
+            'snapshot': dict((tid, task._asdict()) for tid, task in
+                self.tasks.items())
+        }
+        if include_history:
+            archive['history'] = self.history
+        return archive
 
     def dumps(self):
         """Return a string representation of full current state."""
