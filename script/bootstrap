@@ -5,5 +5,5 @@ do
     if [ ! -d venv$VERSION ]; then
         virtualenv --python=python$VERSION venv$VERSION
     fi
-    # venv$VERSION/bin/pip install -r requirements.txt
+    venv$VERSION/bin/pip install -r requirements.txt
 done

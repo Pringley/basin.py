@@ -13,12 +13,13 @@ class Model(pw.Model):
 
 class Task(Model):
     """Represent a todo item."""
-    title = pw.CharField(null=True)
-    body = pw.CharField(null=True)
-    due = pw.DateTimeField(null=True)
-    project = pw.BooleanField(default=False)
+    title = pw.CharField(null=True, help_text='short description')
+    body = pw.CharField(null=True, help_text='longer description')
+    due = pw.DateTimeField(null=True, help_text='due date/time')
+    project = pw.BooleanField(default=False, help_text='multi-step project?')
 
     created = pw.DateTimeField()
+    updated = pw.DateTimeField()
 
     completed = pw.BooleanField(default=False)
     trashed = pw.BooleanField(default=False)
@@ -26,6 +27,73 @@ class Task(Model):
     assignee = pw.CharField(null=True)
     sleepforever = pw.BooleanField(default=False)
     sleepuntil = pw.DateTimeField(null=True)
+
+    @classmethod
+    def create(cls, **kwargs):
+        now = datetime.datetime.now()
+        kwargs.setdefault('created', now)
+        kwargs.setdefault('updated', now)
+        return super(Task, cls).create(**kwargs)
+
+    def save(self, **kwargs):
+        if 'updated' not in self.dirty_fields:
+            self.updated = datetime.datetime.now()
+        return super(Task, self).save(**kwargs)
+
+    def complete(self):
+        """Complete the task."""
+        self.completed = True
+        self.save()
+
+    def uncomplete(self):
+        """Revert task to incomplete."""
+        self.completed = False
+        self.save()
+
+    def trash(self):
+        """Trash the task."""
+        self.trashed = True
+        self.save()
+
+    def untrash(self):
+        """Remove task from the trash."""
+        self.trashed = False
+        self.save()
+
+    def sleep(self, wakeup_time=None):
+        """Defer this task until later."""
+        if wakeup_time is None:
+            self.sleepforever = True
+        else:
+            self.sleepuntil = wakeup_time
+        self.save()
+
+    def unsleep(self):
+        """Un-defer the task."""
+        self.sleepforever = False
+        self.sleepuntil = None
+        self.save()
+
+    def block_on(self, blocking_task):
+        """Block on another task."""
+        Blocks.create(blocked=self, blocker=blocking_task)
+
+    def unblock(self, blocking_task=None):
+        """Mark a task as unblocked. Optionally only remove one blocker."""
+        if blocking_task is None:
+            query = Blocks.delete().where(Blocks.blocked == self)
+        else:
+            query = Blocks.delete().where(Blocks.blocked == self
+                    and Blocks.blocker == blocking_task)
+        query.execute()
+
+    def delegate(self, assignee):
+        self.assignee = assignee
+        self.save()
+
+    def undelegate(self):
+        self.assignee = None
+        self.save()
 
     def is_active(self):
         """Check if the task is active (non-sleeping, etc)."""
@@ -53,158 +121,18 @@ class Blocks(Model):
 class Label(Model):
     """Represent task labels."""
     name = pw.CharField()
+    trashed = pw.BooleanField(default=False)
 
 class TaskToLabel(Model):
     """Match tasks to labels."""
     task = pw.ForeignKeyField(Task)
     label = pw.ForeignKeyField(Label)
 
-class BasinError(RuntimeError):
-    """Generic Basin-related error."""
-
-def set_defaults(params, defaults):
-    """Set default parameters.
-    
-    params -- original dict of parameters
-    defaults -- dict of default values
-    
-    """
-    if params is None:
-        params = {}
-    for key, default in defaults.items():
-        if key not in params or params[key] is None:
-            params[key] = default
-
-class Tasks(object):
-
-    def __init__(self):
-        db_proxy.initialize(pw.SqliteDatabase(':memory:'))
-        if not Task.table_exists():
-            Task.create_table()
-            Blocks.create_table()
-            Label.create_table()
-            TaskToLabel.create_table()
-
-    def filter(self, **kwargs):
-        # Ignore trashed and completed tasks by default.
-        if not kwargs.pop('all', False):
-            kwargs.setdefault('trashed', False)
-            kwargs.setdefault('completed', False)
-        fields = set(kwargs.keys()) & set(Task._meta.get_fields())
-        pseudo_fields = set(kwargs.keys()) - set(Task._meta.get_fields())
-        results = []
-        for task in Task.select():
-            if not all(getattr(task, field) == kwargs[field] for field in fields):
-                continue
-            pf = {
-                'sleeping': task.is_sleeping(),
-                'blocked': task.is_blocked(),
-                'delegated': task.is_delegated(),
-                'active': task.is_active(),
-                'trashed': task.trashed,
-                'completed': task.completed,
-            }
-            if not all(pf[field] == kwargs[field]
-                    for field in pseudo_fields):
-                continue
-            results.append(task)
-        return results
-
-    def is_incomplete(self, task):
-        """Return True if given task id is active (not completed or trashed)."""
-        return not (task.completed or task.trashed)
-
-    def is_active(self, task):
-        """Return True if given task id is active (not sleeping, blocked, completed, ...)."""
-        return task.is_active()
-
-    def is_sleeping(self, task):
-        """Return True if given task id is sleeping."""
-        return task.is_sleeping()
-
-    def is_blocked(self, task):
-        """Return True if given task id is blocked."""
-        return task.is_blocked()
-
-    def is_delegated(self, task):
-        """Return True if given task id is delegated."""
-        return task.is_delegated()
-
-    def is_completed(self, task):
-        """Return True if given task id is completed."""
-        return task.completed
-
-    def is_trashed(self, task):
-        """Return True if given task id is trashed."""
-        return task.trashed
-
-    def is_project(self, task):
-        """Return True if given task id is a project."""
-        return task.project
-
-    def get(self, task):
-        """Return the task corresponding to the given id."""
-        return task
-
-    def create(self, title=None, **params):
-        """Create a new task."""
-        params['title'] = title
-        now = datetime.datetime.now()
-        set_defaults(params, {
-            'created': now,
-        })
-        return Task.create(**params)
-
-    def trash(self, tid):
-        """Send a task to the trash."""
-        self.update(tid, trashed=True)
-
-    def untrash(self, tid):
-        """Remove a task from the trash."""
-        self.update(tid, trashed=False)
-
-    def complete(self, tid):
-        """Complete a task."""
-        self.update(tid, completed=True)
-
-    def uncomplete(self, tid):
-        """Mark a task as not complete."""
-        self.update(tid, completed=False)
-
-    def sleep(self, task, wakeup_time=None):
-        """Sleep a task until wakeup_time, or indefinitely if time not provided."""
-        if wakeup_time is None:
-            self.update(task, sleepforever=True)
-        else:
-            self.update(task, sleepuntil=wakeup_time)
-
-    def unsleep(self, task):
-        """Remove sleep from a task."""
-        self.update(task, sleepforever=False, sleepuntil=None)
-
-    def delegate(self, task, assignee):
-        """Delegate a task to a new owner."""
-        self.update(task, assignee=assignee)
-
-    def undelegate(self, task):
-        """Un-delegate a task."""
-        self.update(task, assignee=None)
-
-    def block(self, blocked, blocker):
-        """Mark a task as blocking another."""
-        Blocks.create(blocked=blocked, blocker=blocker)
-
-    def unblock(self, blocked, blocker=None):
-        """Mark a task as unblocked. Optionally only remove one blocker."""
-        if blocker is None:
-            query = Blocks.delete().where(Blocks.blocked == blocked)
-        else:
-            query = Blocks.delete().where(Blocks.blocked == blocked
-                    and Blocks.blocker == blocker)
-        query.execute()
-
-    def update(self, task, **params):
-        """Update a task."""
-        for param, value in params.items():
-            setattr(task, param, value)
-        task.save()
+def global_db_init(filename=':memory:'):
+    """Globally initialize the database."""
+    db_proxy.initialize(pw.SqliteDatabase(filename))
+    if not Task.table_exists():
+        Task.create_table()
+        Blocks.create_table()
+        Label.create_table()
+        TaskToLabel.create_table()
