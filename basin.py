@@ -84,7 +84,7 @@ class Tasks(object):
                 'sleeping': self.is_sleeping(tid),
                 'blocked': self.is_blocked(tid),
                 'delegated': self.is_delegated(tid),
-                'active': self.is_infocus(tid),
+                'active': self.is_active(tid),
             }
             if not all(pf[field] == kwargs[field]
                     for field in pseudo_fields):
@@ -92,41 +92,15 @@ class Tasks(object):
             results.append(tid)
         return set(results)
 
-    def active_tids(self):
-        """Return a set of active task ids (not completed or trashed)."""
-        return set(tid for tid in self.tasks if self.is_active(tid))
-
-    def infocus_tids(self):
-        """Return a set of task ids in the infocus set (not sleeping, blocked)."""
-        return self.filter(active=True)
-
-    def sleeping_tids(self):
-        """Return a set of sleeping task ids (from active tasks)."""
-        return self.filter(sleeping=True)
-
-    def blocked_tids(self):
-        """Return a set of blocked task ids (from active tasks)."""
-        return self.filter(blocked=True)
-
-    def delegated_tids(self):
-        """Return a set of delegated task ids (from active tasks)."""
-        return self.filter(delegated=True)
-
-    def completed_tids(self):
-        """Return a set of completed task ids (that aren't trashed)."""
-        return self.filter(completed=True)
-
-    def trashed_tids(self):
-        """Return a set of trashed task ids."""
-        return self.filter(all=True, trashed=True)
-
-    def is_active(self, tid):
+    def is_incomplete(self, tid):
         """Return True if given task id is active (not completed or trashed)."""
         return not (self.is_completed(tid) or self.is_trashed(tid))
 
-    def is_infocus(self, tid):
-        """Return True if given task id is infocus (not sleeping, blocked)."""
-        return self.is_active(tid) and not (self.is_sleeping(tid) or self.is_blocked(tid))
+    def is_active(self, tid):
+        """Return True if given task id is active (not sleeping, blocked, completed, ...)."""
+        return not (self.is_completed(tid) or self.is_trashed(tid)
+                or self.is_delegated(tid) or self.is_sleeping(tid)
+                or self.is_blocked(tid))
 
     def is_sleeping(self, tid):
         """Return True if given task id is sleeping."""
