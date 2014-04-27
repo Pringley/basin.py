@@ -1,0 +1,10 @@
+#!/bin/bash
+
+for VERSION in 2.6 2.7 3.3 3.4
+do
+    echo "Testing on Python $VERSION"
+    venv$VERSION/bin/python test_basin.py
+    if ! [ $? -eq 0 ]; then
+        exit 1
+    fi
+done

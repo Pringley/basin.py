@@ -1,0 +1,9 @@
+#!/bin/bash
+
+for VERSION in 2.6 2.7 3.3 3.4
+do
+    if [ ! -d venv$VERSION ]; then
+        virtualenv --python=python$VERSION venv$VERSION
+    fi
+    # venv$VERSION/bin/pip install -r requirements.txt
+done
