@@ -164,49 +164,49 @@ class Tasks(object):
 
     def trash(self, tid):
         """Send a task to the trash."""
-        self._update(tid=tid, trashed=True)
+        self.update(tid, trashed=True)
 
     def untrash(self, tid):
         """Remove a task from the trash."""
-        self._update(tid=tid, trashed=False)
+        self.update(tid, trashed=False)
 
     def complete(self, tid):
         """Complete a task."""
-        self._update(tid=tid, completed=True)
+        self.update(tid, completed=True)
 
     def uncomplete(self, tid):
         """Mark a task as not complete."""
-        self._update(tid=tid, completed=False)
+        self.update(tid, completed=False)
 
     def sleep(self, tid, wakeup_time=-1):
         """Sleep a task until wakeup_time, or indefinitely if time not provided."""
-        self._update(tid=tid, sleepuntil=wakeup_time)
+        self.update(tid, sleepuntil=wakeup_time)
 
     def unsleep(self, tid):
         """Remove sleep from a task."""
-        self._update(tid=tid, sleepuntil=None)
+        self.update(tid, sleepuntil=None)
 
     def delegate(self, tid, owner):
         """Delegate a task to a new owner."""
-        self._update(tid=tid, owner=owner)
+        self.update(tid, owner=owner)
 
     def undelegate(self, tid):
         """Un-delegate a task."""
-        self._update(tid=tid, owner=None)
+        self.update(tid, owner=None)
 
     def block(self, blocked_tid, blocking_tid):
         """Mark a task as blocking another."""
         task = self.get(blocked_tid)
-        self._update(tid=blocked_tid, blockers=list((set(task.blockers) |
+        self.update(blocked_tid, blockers=list((set(task.blockers) |
             set([blocking_tid]))))
 
     def unblock(self, blocked_tid, blocking_tid=None):
         """Mark a task as unblocked. Optionally only remove one blocker."""
         if blocking_tid is None:
-            self._update(tid=blocked_tid, blockers=[])
+            self.update(blocked_tid, blockers=[])
             return
         task = self.get(blocked_tid)
-        self._update(tid=blocked_tid, blockers=list((set(task.blockers) -
+        self.update(blocked_tid, blockers=list((set(task.blockers) -
             set([blocking_tid]))))
 
     def update(self, tid, **params):
